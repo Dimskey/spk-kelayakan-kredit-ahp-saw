@@ -206,4 +206,80 @@ class SpkDashboardAndAhpWebTest extends TestCase
             'c5_score' => 1,
         ]);
     }
+
+    public function test_csv_upload_replace_mode_replaces_existing_customers_and_updates_dashboard(): void
+    {
+        $this->seedSampleCustomersAndAssessments();
+
+        $csvContent = implode("\n", [
+            'CODE,NAME,TYPE,COMPANY,DELIVERY ADDRESS,deliveryPhone,billingAddress,pic,email,customerType,nik,npwp,sppkp,imgKtp,nib,businessEntity,businessEntityName,paymentTerm,STATUS',
+            '"C-9001","BERKAH JAYA ABADI","reseller","SOPRA","Jl. Sudirman No 1 Jakarta 10220","081211112222","Jl. Sudirman No 1 Jakarta","Andi Wijaya","andi@berkah.co.id","reseller","3174010101850001","0503508210418001","S-100/PKP/2024","https://solusi-pack.com/uploads/ktp_andi.jpg","1509230149162","pt","PT. BERKAH JAYA ABADI","CBD","Active"',
+        ]);
+
+        $file = UploadedFile::fake()->createWithContent('customers_replace.csv', $csvContent);
+
+        $response = $this->post(route('spk.import.csv'), [
+            'csv_file' => $file,
+            'import_mode' => 'replace',
+        ]);
+
+        $response->assertRedirect(route('spk.dashboard'));
+        $this->assertEquals(1, Customer::count());
+        $this->assertEquals(1, CustomerAssessment::count());
+        $this->assertDatabaseHas('customers', ['customer_code' => 'C-9001']);
+        $this->assertDatabaseMissing('customers', ['customer_code' => 'C-1001']);
+        $this->assertDatabaseMissing('customers', ['customer_code' => 'C-1002']);
+
+        $dashboard = $this->get('/');
+        $dashboard->assertStatus(200);
+        $dashboard->assertSee('C-9001');
+        $dashboard->assertDontSee('C-1001');
+        $dashboard->assertDontSee('C-1002');
+    }
+
+    public function test_csv_upload_upsert_mode_merges_and_updates_existing_customers(): void
+    {
+        $this->seedSampleCustomersAndAssessments();
+
+        $csvContent = implode("\n", [
+            'CODE,NAME,TYPE,COMPANY,DELIVERY ADDRESS,deliveryPhone,billingAddress,pic,email,customerType,nik,npwp,sppkp,imgKtp,nib,businessEntity,businessEntityName,paymentTerm,STATUS',
+            '"C-9001","BERKAH JAYA ABADI","reseller","SOPRA","Jl. Sudirman No 1 Jakarta 10220","081211112222","Jl. Sudirman No 1 Jakarta","Andi Wijaya","andi@berkah.co.id","reseller","3174010101850001","0503508210418001","S-100/PKP/2024","https://solusi-pack.com/uploads/ktp_andi.jpg","1509230149162","pt","PT. BERKAH JAYA ABADI","CBD","Active"',
+        ]);
+
+        $file = UploadedFile::fake()->createWithContent('customers_upsert.csv', $csvContent);
+
+        $response = $this->post(route('spk.import.csv'), [
+            'csv_file' => $file,
+            'import_mode' => 'upsert',
+        ]);
+
+        $response->assertRedirect(route('spk.dashboard'));
+        $this->assertEquals(3, Customer::count());
+        $this->assertEquals(3, CustomerAssessment::count());
+        $this->assertDatabaseHas('customers', ['customer_code' => 'C-1001']);
+        $this->assertDatabaseHas('customers', ['customer_code' => 'C-1002']);
+        $this->assertDatabaseHas('customers', ['customer_code' => 'C-9001']);
+    }
+
+    public function test_csv_upload_invalid_csv_in_replace_mode_preserves_existing_data(): void
+    {
+        $this->seedSampleCustomersAndAssessments();
+
+        $invalidCsv = implode("\n", [
+            'FOO,BAR',
+            '1,2',
+        ]);
+
+        $file = UploadedFile::fake()->createWithContent('customers_invalid.csv', $invalidCsv);
+
+        $response = $this->post(route('spk.import.csv'), [
+            'csv_file' => $file,
+            'import_mode' => 'replace',
+        ]);
+
+        $response->assertRedirect(route('spk.dashboard'));
+        $response->assertSessionHasErrors('csv_file');
+        $this->assertEquals(2, Customer::count());
+        $this->assertEquals(2, CustomerAssessment::count());
+    }
 }

@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SpkDashboardController extends Controller
@@ -223,26 +224,39 @@ class SpkDashboardController extends Controller
         $request->validate([
             'csv_file' => ['nullable', 'file', 'mimes:csv,txt', 'max:20480'],
             'sync_default' => ['nullable', 'boolean'],
+            'import_mode' => ['nullable', 'in:replace,upsert'],
         ]);
 
         [$activeSession, $criteria] = $this->ensureInitialized();
 
-        if ($request->hasFile('csv_file')) {
-            $uploaded = $request->file('csv_file');
-            $importResult = $this->importer->importFromFile($uploaded->getRealPath());
-        } else {
-            $defaultPath = base_path('Asets/Customer (3).csv');
-            $importResult = $this->importer->importFromFile($defaultPath);
+        $importMode = (string) $request->input('import_mode', 'replace');
+        $replaceExisting = $importMode === 'replace';
+
+        try {
+            if ($request->hasFile('csv_file')) {
+                $uploaded = $request->file('csv_file');
+                $importResult = $this->importer->importFromFile($uploaded->getRealPath(), null, $replaceExisting);
+            } else {
+                $defaultPath = base_path('Asets/Customer (3).csv');
+                $importResult = $this->importer->importFromFile($defaultPath, null, $replaceExisting);
+            }
+        } catch (InvalidArgumentException $e) {
+            return redirect()
+                ->route('spk.dashboard')
+                ->withErrors(['csv_file' => $e->getMessage()]);
         }
 
         $summary = $this->orchestrator->recalculateForActiveSession();
+        $modeLabel = $importResult['mode'] === 'replace' ? 'Replace' : 'Upsert';
 
         return redirect()
             ->route('spk.dashboard')
             ->with('status', sprintf(
-                'Impor selesai (%d pelanggan pada batch %s). Hasil SAW: %d NET_30, %d NET_14, %d CBD.',
+                'Impor (%s) selesai: %d baris CSV pada batch %s. Total populasi aktif: %d entitas (%d NET_30, %d NET_14, %d CBD).',
+                $modeLabel,
                 $importResult['imported_count'],
                 $importResult['batch_id'],
+                $summary['total'],
                 $summary['net_30'],
                 $summary['net_14'],
                 $summary['cbd']

@@ -3,6 +3,7 @@
 namespace App\Services\Spk;
 
 use App\Models\Customer;
+use App\Models\CustomerAssessment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -22,7 +23,7 @@ class CsvCustomerImporterService
         'paymentTermId',
     ];
 
-    public function importFromFile(string $filePath, ?string $batchId = null): array
+    public function importFromFile(string $filePath, ?string $batchId = null, bool $replaceExisting = false): array
     {
         if (! is_file($filePath) || ! is_readable($filePath)) {
             throw new InvalidArgumentException("File CSV tidak ditemukan atau tidak dapat dibaca: {$filePath}");
@@ -123,7 +124,12 @@ class CsvCustomerImporterService
 
         $updateColumns = array_values(array_diff(array_keys($records[0]), ['customer_code', 'created_at']));
 
-        DB::transaction(function () use ($records, $updateColumns): void {
+        DB::transaction(function () use ($records, $updateColumns, $replaceExisting): void {
+            if ($replaceExisting) {
+                CustomerAssessment::query()->delete();
+                Customer::query()->delete();
+            }
+
             foreach (array_chunk($records, 300) as $chunk) {
                 Customer::upsert($chunk, ['customer_code'], $updateColumns);
             }
@@ -132,6 +138,7 @@ class CsvCustomerImporterService
         return [
             'imported_count' => count($records),
             'batch_id' => $resolvedBatchId,
+            'mode' => $replaceExisting ? 'replace' : 'upsert',
         ];
     }
 

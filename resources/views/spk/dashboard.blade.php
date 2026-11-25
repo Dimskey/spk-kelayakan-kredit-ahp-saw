@@ -896,6 +896,34 @@
                         Kosongkan pilihan file jika ingin melakukan sinkronisasi ulang dari dataset bawaan <span class="font-mono-tabular">Asets/Customer (3).csv</span>.
                     </p>
                 </div>
+
+                <div>
+                    <span class="block font-medium text-ink mb-1.5">Mode Impor Dataset</span>
+                    <div class="space-y-2">
+                        <label class="flex items-start gap-2.5 p-2.5 border border-hairline rounded-sm bg-canvas hover:bg-subtle/60 cursor-pointer">
+                            <input type="radio"
+                                   name="import_mode"
+                                   value="replace"
+                                   checked
+                                   class="mt-0.5 border-zinc-300 text-zinc-950 focus:ring-0">
+                            <div>
+                                <div class="font-medium text-ink">Ganti Seluruh Dataset (Replace)</div>
+                                <p class="text-[11px] text-muted">Menghapus data pelanggan lama dan hanya menghitung ulang data dari file CSV yang diimpor.</p>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-2.5 p-2.5 border border-hairline rounded-sm bg-canvas hover:bg-subtle/60 cursor-pointer">
+                            <input type="radio"
+                                   name="import_mode"
+                                   value="upsert"
+                                   class="mt-0.5 border-zinc-300 text-zinc-950 focus:ring-0">
+                            <div>
+                                <div class="font-medium text-ink">Gabung / Perbarui (Upsert)</div>
+                                <p class="text-[11px] text-muted">Mempertahankan data lama dan memperbarui pelanggan dengan <span class="font-mono-tabular">customer_code</span> yang sama.</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
                 <div class="flex items-center justify-end gap-2 pt-2 border-t border-hairline">
                     <button type="button" x-on:click="csvModalOpen = false" class="px-3 py-1.5 border border-hairline rounded-sm text-muted hover:text-ink cursor-pointer">Batal</button>
                     <button type="submit" class="px-3 py-1.5 bg-zinc-950 text-white rounded-sm font-medium hover:bg-zinc-800 cursor-pointer">Jalankan Impor &amp; Evaluasi</button>

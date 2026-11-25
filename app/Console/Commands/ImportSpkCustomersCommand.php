@@ -10,7 +10,7 @@ use Illuminate\Console\Command;
 
 class ImportSpkCustomersCommand extends Command
 {
-    protected $signature = 'spk:import-csv {path? : Path ke file CSV pelanggan}';
+    protected $signature = 'spk:import-csv {path? : Path ke file CSV pelanggan} {--replace : Ganti seluruh dataset pelanggan lama sebelum impor}';
 
     protected $description = 'Impor data pelanggan CSV dan kalkulasi ulang peringkat kelayakan kredit AHP-SAW';
 
@@ -25,8 +25,10 @@ class ImportSpkCustomersCommand extends Command
             $this->call('db:seed', ['--class' => SpkCriteriaSeeder::class]);
         }
 
+        $replace = (bool) $this->option('replace');
+
         $this->info("Mengimpor dataset pelanggan dari: {$path}");
-        $importResult = $importer->importFromFile($path);
+        $importResult = $importer->importFromFile($path, null, $replace);
         $this->info("Berhasil mengimpor {$importResult['imported_count']} pelanggan (Batch: {$importResult['batch_id']}).");
 
         $this->info('Menghitung skor kriteria (C1..C5), normalisasi SAW, dan peringkat ToP...');
